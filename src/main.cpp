@@ -11,35 +11,44 @@
 
 const char HelloWorld[] = "Hello World!";
 
-void helloWorld()
-{
+void Show_Partial(String Input, int x, int y, int width, int height){
+
   display.setRotation(1);
   display.setFont(&FreeMonoBold9pt7b);
   display.setTextColor(GxEPD_BLACK);
-  int16_t tbx, tby; uint16_t tbw, tbh;
-  display.getTextBounds(HelloWorld, 0, 0, &tbx, &tby, &tbw, &tbh);
-  // center the bounding box by transposition of the origin:
-  uint16_t x = ((display.width() - tbw) / 2) - tbx;
-  uint16_t y = ((display.height() - tbh) / 2) - tby;
-  display.setFullWindow();
+  display.setPartialWindow(x,y,width,height);
   display.firstPage();
+  display.setTextColor(GxEPD_WHITE);
+
   do
   {
-    display.fillScreen(GxEPD_WHITE);
-    display.setCursor(x, y);
-    display.print(HelloWorld);
+    display.fillRect(x,y,width,height, GxEPD_BLACK);
+    //display.hasFastPartialUpdate(); // is a read method
+    display.setCursor(x, y+20);
+    display.print(Input);
+    delay(50);
   }
   while (display.nextPage());
+
 }
 
 void setup()
 {
   //display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
   display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
-  helloWorld();
+  display.setRotation(1);
+  display.setFont(&FreeMonoBold9pt7b);
+  display.setTextColor(GxEPD_WHITE);
+  display.firstPage();
+  do{
+    display.fillRect(0,0,296,23,GxEPD_BLACK);
+    display.setCursor(70,15);
+    display.print("Hello Nigga! :)");
+    delay(50);
+  }
+  while(display.nextPage());
+
   display.hibernate();
 }
-
-
 
 void loop() {};
