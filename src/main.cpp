@@ -2,6 +2,11 @@
 #include <Adafruit_Sensor.h>
 #include <U8g2_for_Adafruit_GFX.h>
 #include <DHT.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#define WIFI_SSID "Redmi Note 10S"
+#define WIFI_PASSWORD "12345678"
+//OPPO Reno8 T 5G, 12348765
 
 
 #define MAX_DISPLAY_BUFFER_SIZE 800
@@ -13,6 +18,13 @@ GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> displ
 
 #define PIR_in_pin 27
 #define PIR_out_pin 26
+
+#define led 32
+//https://docs.google.com/spreadsheets/d/1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc/edit?gid=0#gid=0
+//1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc
+
+String URL = "https://script.google.com/macros/s/AKfycbyXmQYj_BsG6RlaBTjZySvpfMkLCk3HEpxNikECkL3xlvlD_A282rAniDI4T9mdBlRw/exec?sts=write";
+
 
 
 
@@ -50,13 +62,57 @@ void setup()
 
   display.setRotation(1);
 
+  pinMode(led, OUTPUT);
+  digitalWrite(led, LOW);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED){
+    Serial.print(".");
+    delay(300);
+  }
+  Serial.println();
+  Serial.print("Connected with IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.println();
+
+  setCpuFrequencyMhz(80);
+
 }
 
 void loop() {
 
-  setCpuFrequencyMhz(80);
+  // // WiFi.begin();
+  // if(WiFi.status() == WL_CONNECTED){
+  //   digitalWrite(led, HIGH);
+  // }
+  // else{
+  //   digitalWrite(led, LOW);
+  // }
+
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
+
+  URL = "https://script.google.com/macros/s/AKfycbysSuNL1ltvjkaQBunL6vNLS5m6BGEgk7yWyvXBOT2bIYknJyMW1LEHgN6IjDdEn2i6/exec?sts=write";
+  URL += "&temp=" + String(temperature);
+  URL += "&humd=" + String(humidity);
+  URL += "&npeople=" + String(People_count);
+
+  HTTPClient http;
+  // HTTP GET Request.
+  http.begin(URL.c_str());
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  // Gets the HTTP status code. 
+  int httpCode = http.GET();
+    String payload;
+  if (httpCode > 0) {
+    payload = http.getString();
+    Serial.println("Payload : " + payload);    
+  }
+
+  http.end();
+  // WiFi.mode(WIFI_OFF);
+
   
 
   if(temperature > Temperature_upper_threashold){ Temperature_danger = 1;}else if(temperature < Temperature_lower_threashold){ Temperature_danger = -1;}else{Temperature_danger = 0;}
@@ -137,4 +193,3 @@ while(time % 30000 > 50){time = millis();}
 
 
 }
-
