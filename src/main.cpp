@@ -4,9 +4,11 @@
 #include <DHT.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#define WIFI_SSID "Redmi Note 10S"
-#define WIFI_PASSWORD "12345678"
+#include <queue>
+#define WIFI_SSID "Yurichi"
+#define WIFI_PASSWORD "12348765"
 //OPPO Reno8 T 5G, 12348765
+
 
 
 #define MAX_DISPLAY_BUFFER_SIZE 800
@@ -23,7 +25,7 @@ GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> displ
 //https://docs.google.com/spreadsheets/d/1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc/edit?gid=0#gid=0
 //1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc
 
-String URL = "https://script.google.com/macros/s/AKfycbyXmQYj_BsG6RlaBTjZySvpfMkLCk3HEpxNikECkL3xlvlD_A282rAniDI4T9mdBlRw/exec?sts=write";
+String URL = "https://script.google.com/macros/s/AKfycbxnqfEGZMHjn2Ebd_D0tm0VSgEZOGyk9OVzxktNx8H7G_xwJ2qzl26o78IyMAwsav0F/exec?sts=write";
 
 
 
@@ -38,15 +40,19 @@ const int Temperature_lower_threashold = 16;
 const int Humidity_upper_threashold = 60;
 const int Humidity_lower_threashold = 40;
 bool DHT_fault = false;
-volatile int People_count = 0;
+int People_count = 0;
 const int People_count_upper_threashold = 5;
+std::queue <bool> gateLog; //0 = inside, 1 = outside
+float prevTemp;
+float prevHumidity;
+int prevPeople_count;
 
-void count_up(){
-  People_count++;
+void innerPIRtrigger (){
+  gateLog.push(0);
 }
 
-void count_down(){
-  People_count--;
+void outerPIRtrigger(){
+  gateLog.push(1);
 }
 
 void setup()
@@ -57,24 +63,24 @@ void setup()
   DHT_SENSOR.begin();
   pinMode(PIR_in_pin, INPUT_PULLDOWN);
   pinMode(PIR_out_pin, INPUT_PULLDOWN);
-  attachInterrupt(digitalPinToInterrupt( PIR_in_pin ), count_up ,RISING);
-  attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), count_down ,RISING);
+  attachInterrupt(digitalPinToInterrupt( PIR_in_pin ), innerPIRtrigger ,RISING);
+  attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), outerPIRtrigger ,RISING);
 
   display.setRotation(1);
 
   pinMode(led, OUTPUT);
   digitalWrite(led, LOW);
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED){
-    Serial.print(".");
-    delay(300);
-  }
-  Serial.println();
-  Serial.print("Connected with IP: ");
-  Serial.println(WiFi.localIP());
-  Serial.println();
+  // WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  // Serial.print("Connecting to Wi-Fi");
+  // while (WiFi.status() != WL_CONNECTED){
+  //   Serial.print(".");
+  //   delay(300);
+  // }
+  // Serial.println();
+  // Serial.print("Connected with IP: ");
+  // Serial.println(WiFi.localIP());
+  // Serial.println();
 
   setCpuFrequencyMhz(80);
 
@@ -82,16 +88,29 @@ void setup()
 
 void loop() {
 
-  // // WiFi.begin();
-  // if(WiFi.status() == WL_CONNECTED){
-  //   digitalWrite(led, HIGH);
-  // }
-  // else{
-  //   digitalWrite(led, LOW);
-  // }
+  if(WiFi.status() == WL_CONNECTED){
+    digitalWrite(led, HIGH);
+  }
+  else{
+    digitalWrite(led, LOW);
+  }
 
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
+
+  while(gateLog.size() >= 2){
+    bool first = gateLog.front();
+    gateLog.pop();
+    bool second = gateLog.front();
+    gateLog.pop();
+
+    if(first == 0 && second == 1){People_count--;}
+    else if( first == 1 && second == 0){People_count++;}
+  }
+  Serial.println();
+  Serial.println(People_count);
+  delay(500);
+
 
   URL = "https://script.google.com/macros/s/AKfycbysSuNL1ltvjkaQBunL6vNLS5m6BGEgk7yWyvXBOT2bIYknJyMW1LEHgN6IjDdEn2i6/exec?sts=write";
   URL += "&temp=" + String(temperature);
@@ -101,8 +120,8 @@ void loop() {
   HTTPClient http;
   // HTTP GET Request.
   http.begin(URL.c_str());
-  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  // Gets the HTTP status code. 
+  // http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+  // // Gets the HTTP status code. 
   int httpCode = http.GET();
     String payload;
   if (httpCode > 0) {
@@ -121,6 +140,7 @@ void loop() {
   if(isnan(temperature) || isnan(humidity)){DHT_fault = true;}else{DHT_fault = false;}
 
   //-----------------------
+  if(temperature != prevTemp || humidity != prevHumidity || People_count != prevPeople_count){
 
   display.firstPage();
   u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
@@ -181,7 +201,13 @@ void loop() {
 
     
   }while(display.nextPage());
+
   display.hibernate();
+  }
+
+  prevTemp = temperature;
+  prevHumidity = humidity;
+  prevPeople_count = People_count;
 
   auto time = millis();
   // esp_sleep_enable_timer_wakeup((30000 - ((int)time % 30000))*1000);
@@ -189,7 +215,6 @@ void loop() {
   // esp_sleep_enable_ext0_wakeup((gpio_num_t)7,HIGH);
   // esp_light_sleep_start();
   
-while(time % 30000 > 50){time = millis();}
-
+  while(time % 30000 > 50){time = millis();}
 
 }
