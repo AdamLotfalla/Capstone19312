@@ -5,12 +5,39 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <queue>
-#include <Adafruit_TSL2561_U.h>
-#define WIFI_SSID "Yurichi"
-#define WIFI_PASSWORD "12348765"
+#include <Adafruit_TSL2561_U.h> //https://github.com/jacobstim/Adafruit_TSL2561
+#include <Wire.h>
+#include "pitches.h" //library
+
+//---------------------------------------_Wi-Fi definitions_---------------------------------------//
+
+#define WIFI_SSID "Redmi Note 10S"
+#define WIFI_PASSWORD "01010101"
 //OPPO Reno8 T 5G, 12348765
+//Yurichi, 12348765
+
+//https://docs.google.com/spreadsheets/d/1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc/edit?gid=0#gid=0
+//1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc
+
+String URL = "https://script.google.com/macros/s/AKfycbxnqfEGZMHjn2Ebd_D0tm0VSgEZOGyk9OVzxktNx8H7G_xwJ2qzl26o78IyMAwsav0F/exec?sts=write";
 
 
+//---------------------------------------_TSL2561 interrupt adresses_---------------------------------------//
+
+#define TSL2561_ADDR 0x39 // Default I2C address for TSL2561
+#define COMMAND_BIT 0x80  // Command bit to specify register
+
+// TSL2561 Registers
+#define THRESHLOWLOW 0x02
+#define THRESHLOWHIGH 0x03
+#define THRESHHIGHLOW 0x04
+#define THRESHHIGHHIGH 0x05
+#define INTERRUPT_CONTROL 0x06
+#define COMMAND_CLEAR_INTERRUPT 0xC0
+
+#define TSL2561_INT_PIN 12
+
+//---------------------------------------_EPD definitions_---------------------------------------//
 
 #define MAX_DISPLAY_BUFFER_SIZE 800
 #define MAX_HEIGHT(EPD) (EPD::HEIGHT <= (MAX_DISPLAY_BUFFER_SIZE / 2) / (EPD::WIDTH / 8) ? EPD::HEIGHT : (MAX_DISPLAY_BUFFER_SIZE / 2) / (EPD::WIDTH / 8))
@@ -19,35 +46,44 @@
 #define GxEPD2_DRIVER_CLASS GxEPD2_290_C90c //GDEM029C90  128x296, SSD1680, (FPC-7519 rev.b)
 GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> display(GxEPD2_DRIVER_CLASS(/*CS=5*/ EPD_CS, /*DC=*/ 17, /*RST=*/ 16, /*BUSY=*/ 4));
 
+//---------------------------------------_Pin definitions_---------------------------------------//
+
 #define PIR_in_pin 27
 #define PIR_out_pin 26
+#define led 33
+#define buzzer 32
 
-#define led 32
-//https://docs.google.com/spreadsheets/d/1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc/edit?gid=0#gid=0
-//1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc
-
-String URL = "https://script.google.com/macros/s/AKfycbxnqfEGZMHjn2Ebd_D0tm0VSgEZOGyk9OVzxktNx8H7G_xwJ2qzl26o78IyMAwsav0F/exec?sts=write";
-
-
-
+//---------------------------------------_Variable declarations_---------------------------------------//
 
 U8G2_FOR_ADAFRUIT_GFX  u8g2Fonts;
 DHT DHT_SENSOR(25,DHT22);
 Adafruit_TSL2561_Unified TSL = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+
 short int Temperature_danger = 0;
 short int Humidity_danger = 0;
 bool People_count_danger = false;
+bool Light_danger = false;
+
 const int Temperature_upper_threashold = 21;
 const int Temperature_lower_threashold = 16;
 const int Humidity_upper_threashold = 60;
 const int Humidity_lower_threashold = 40;
-bool DHT_fault = false;
-int People_count = 0;
 const int People_count_upper_threashold = 5;
+const int Light_upper_threashold = 500;
+
+bool DHT_fault = false;
+bool TSL2561_fault = false;
+
+int People_count = 0;
 std::queue <bool> gateLog; //0 = inside, 1 = outside
+bool TSL_interrupt_triggered = false;
+
 float prevTemp;
 float prevHumidity;
+float prevLight;
 int prevPeople_count;
+
+//---------------------------------------_Interrupt handlers_---------------------------------------//
 
 void innerPIRtrigger (){
   gateLog.push(0);
@@ -57,40 +93,83 @@ void outerPIRtrigger(){
   gateLog.push(1);
 }
 
-// void displaySensorDetails(void)
-// {
-//   sensor_t sensor;
-//   TSL.getSensor(&sensor);
-//   Serial.println("------------------------------------");
-//   Serial.print  ("Sensor:       "); Serial.println(sensor.name);
-//   Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
-//   Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
-//   Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" lux");
-//   Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" lux");
-//   Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" lux");  
-//   Serial.println("------------------------------------");
-//   Serial.println("");
-//   delay(500);
-// }
+//---------------------------------------_Functions_---------------------------------------//
 
-// void configureSensor(void)
-// {
-//   /* You can also manually set the gain or enable auto-gain support */
-//   // TSL.setGain(TSL2561_GAIN_1X);      /* No gain ... use in bright light to avoid sensor saturation */
-//   // TSL.setGain(TSL2561_GAIN_16X);     /* 16x gain ... use in low light to boost sensitivity */
-//   TSL.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
+void displaySensorDetails(void)
+{
+  sensor_t sensor;
+  TSL.getSensor(&sensor);
+  Serial.println("------------------------------------");
+  Serial.print  ("Sensor:       "); Serial.println(sensor.name);
+  Serial.print  ("Driver Ver:   "); Serial.println(sensor.version);
+  Serial.print  ("Unique ID:    "); Serial.println(sensor.sensor_id);
+  Serial.print  ("Max Value:    "); Serial.print(sensor.max_value); Serial.println(" lux");
+  Serial.print  ("Min Value:    "); Serial.print(sensor.min_value); Serial.println(" lux");
+  Serial.print  ("Resolution:   "); Serial.print(sensor.resolution); Serial.println(" lux");  
+  Serial.println("------------------------------------");
+  Serial.println("");
+  delay(500);
+}
+
+void configureSensor(void)
+{
+  TSL.enableAutoRange(true);            /* Auto-gain ... switches automatically between 1x and 16x */
+
+  TSL.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);      /* fast but low resolution */
+
+  /* Configure interrupt thresholds */
+  // First: convert lux value to raw sensor value, using "sunlight" approximation.
+  // Other approximations, see Adafruit_TSL2561_U.h
+  uint16_t threshold = TSL.calculateRawCH0(Light_upper_threashold, TSL2561_APPROXCHRATIO_LED);
+  TSL.setInterruptThreshold(0,threshold);
+  Serial.println(threshold);
+
+  /* Enable level interrupt, trigger interrupt after 5 integration times
+     -> Because integration time is 13ms by default, this means the threshold
+        needs to be exceeded for more than 65ms before the interrupt is triggered.
+        Maximum value is 15; put to 1 for immediate triggering; put to 0 to have
+        the interrupt triggered after every integration time (regardless of whether
+        the thresholds were exceeded or not)
+  */
+  TSL.setInterruptControl(TSL2561_INTERRUPTCTL_LEVEL, 1);
+  TSL.clearLevelInterrupt();
+}
+
+void clearInterrupt() {
+  Wire.beginTransmission(TSL2561_ADDR);
+  Wire.write(COMMAND_CLEAR_INTERRUPT); // Command to clear interrupt
+  Wire.endTransmission();
+}
+
+void WarningTone() {
+  int note = NOTE_A6;   // Moderate-pitched tone
+  int duration = 150;   // Short duration for a quick beep
   
-//   /* Changing the integration time gives you better sensor resolution (402ms = 16-bit data) */
-//   TSL.setIntegrationTime(TSL2561_INTEGRATIONTIME_13MS);      /* fast but low resolution */
-//   // TSL.setIntegrationTime(TSL2561_INTEGRATIONTIME_101MS);  /* medium resolution and speed   */
-//   // TSL.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);  /* 16-bit data but slowest conversions */
+  tone(buzzer, note, duration);
+  delay(duration + 50); // Small delay to ensure the tone finishes properly
+  noTone(buzzer);       // Turn off the buzzer
+}
 
-//   /* Update these values depending on what you've set above! */  
-//   Serial.println("------------------------------------");
-//   Serial.print  ("Gain:         "); Serial.println("Auto");
-//   Serial.print  ("Timing:       "); Serial.println("13 ms");
-//   Serial.println("------------------------------------");
-// }
+void DangerTone() {
+  // Define a danger tone melody with sharp high and low alternating notes
+  int melody[] = {NOTE_B7, NOTE_F7, NOTE_B7, NOTE_F7, NOTE_B7, NOTE_F7};
+  int noteDurations[] = {8, 8, 8, 8, 8, 8}; // Short duration for each note
+  
+  for (int repeat = 0; repeat < 3; repeat++) { // Repeat the sequence 3 times for urgency
+    for (int thisNote = 0; thisNote < 6; thisNote++) {
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(buzzer, melody[thisNote], noteDuration);
+      delay(noteDuration * 1.3); // Add a slight pause between notes
+      noTone(buzzer); // Stop the tone before the next note
+    }
+    delay(300); // Add a short pause between sequences
+  }
+}
+
+void Light_interrupt() {
+  WarningTone();
+  TSL_interrupt_triggered = true;
+}
 
 void setup()
 {
@@ -98,25 +177,27 @@ void setup()
   Serial.begin(115200);
   u8g2Fonts.begin(display);  //connect u8g2 procedures to Adafruit GFX
   DHT_SENSOR.begin();
+
   pinMode(PIR_in_pin, INPUT_PULLDOWN);
   pinMode(PIR_out_pin, INPUT_PULLDOWN);
+  pinMode(TSL2561_INT_PIN, INPUT_PULLUP);
+  pinMode(buzzer, OUTPUT);
+
+  digitalWrite(buzzer, HIGH);
+
   attachInterrupt(digitalPinToInterrupt( PIR_in_pin ), innerPIRtrigger ,RISING);
   attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), outerPIRtrigger ,RISING);
+  attachInterrupt(digitalPinToInterrupt(TSL2561_INT_PIN), Light_interrupt, FALLING);
 
   
-  // if(!TSL.begin())
-  // {
-  //   /* There was a problem detecting the TSL2561 ... check your connections */
-  //   Serial.print("Ooops, no TSL2561 detected ... Check your wiring or I2C ADDR!");
-  //   while(1);
-  // }
+  if(!TSL.begin())
+  {
+    Serial.print("Ooops, no TSL2561 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
 
-  // /* Display some basic information on this sensor */
-  // displaySensorDetails();
-  
-  // /* Setup the sensor gain and integration time */
-  // configureSensor();
-
+  displaySensorDetails();
+  configureSensor();
 
   display.setRotation(1);
 
@@ -147,26 +228,12 @@ void loop() {
     digitalWrite(led, LOW);
   }
 
+  sensors_event_t event;
+  TSL.getEvent(&event);
+
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
-
-
-  //   /* Get a new sensor event */ 
-  // sensors_event_t event;
-  // TSL.getEvent(&event);
- 
-  // /* Display the results (light is measured in lux) */
-  // if (event.light)
-  // {
-  //   Serial.print(event.light); Serial.println(" lux");
-  // }
-  // else
-  // {
-  //   /* If event.light = 0 lux the sensor is probably saturated
-  //      and no reliable data could be generated! */
-  //   Serial.println("Sensor overload");
-  // }
-  // delay(250);
+  float Light = event.light;
 
   while(gateLog.size() >= 2){
     bool first = gateLog.front();
@@ -177,9 +244,6 @@ void loop() {
     if(first == 0 && second == 1){People_count--;}
     else if( first == 1 && second == 0){People_count++;}
   }
-  Serial.println();
-  Serial.println(People_count);
-  delay(500);
 
 
   URL = "https://script.google.com/macros/s/AKfycbysSuNL1ltvjkaQBunL6vNLS5m6BGEgk7yWyvXBOT2bIYknJyMW1LEHgN6IjDdEn2i6/exec?sts=write";
@@ -190,8 +254,9 @@ void loop() {
   HTTPClient http;
   // HTTP GET Request.
   http.begin(URL.c_str());
-  // http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  // // Gets the HTTP status code. 
+  // http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // commented out to remove extra delay
+
+  // Gets the HTTP status code. 
   int httpCode = http.GET();
     String payload;
   if (httpCode > 0) {
@@ -208,9 +273,21 @@ void loop() {
   if(humidity > Humidity_upper_threashold){ Humidity_danger = 1;}else if(humidity < Humidity_lower_threashold){ Humidity_danger = -1;}else{Humidity_danger = 0;}
   if(People_count >= People_count_upper_threashold){ People_count_danger = true;}else{ People_count_danger = false;}
   if(isnan(temperature) || isnan(humidity)){DHT_fault = true;}else{DHT_fault = false;}
+  if(Light > Light_upper_threashold){Light_danger = true;}else{Light_danger = false;}
+  if(Light == 0){TSL2561_fault = true;}else{TSL2561_fault = false;}
 
-  //-----------------------
-  if(temperature != prevTemp || humidity != prevHumidity || People_count != prevPeople_count){
+  if(TSL_interrupt_triggered){
+    clearInterrupt();
+    TSL_interrupt_triggered = false;
+  }
+
+  if(Temperature_danger || Humidity_danger || People_count_danger || Light_danger){
+    DangerTone();
+    delay(100);
+  }
+
+  //--------------------_Display_--------------------
+  if(temperature != prevTemp || humidity != prevHumidity || People_count != prevPeople_count || Light != prevLight){
 
   display.firstPage();
   u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
@@ -234,7 +311,7 @@ void loop() {
     }
     else if(Temperature_danger == -1){
       u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,27, '\u007B');
+      u8g2Fonts.drawGlyph(8,27, '\u007D');
     }
     //-----------------------
     u8g2Fonts.setForegroundColor(Humidity_danger || DHT_fault? 0xF800: 0x0000);
@@ -268,23 +345,36 @@ void loop() {
       u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
       u8g2Fonts.drawGlyph(8,77, '\u0021');
     }
+    //------------------------
+    u8g2Fonts.setForegroundColor(Light_danger? 0xF800: 0x0000);
+    u8g2Fonts.setFont(u8g2_font_fub17_tr);
+    u8g2Fonts.setCursor(25,105);
+    u8g2Fonts.printf("Ligth intensity: %.0f", Light);
+    u8g2Fonts.setFont(u8g2_font_cu12_t_symbols);
+    u8g2Fonts.printf(" lux");
+
+    if(TSL2561_fault){
+      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
+      u8g2Fonts.drawGlyph(8,105, '\u0047');
+    }
+    else if(Light_danger){
+      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
+      u8g2Fonts.drawGlyph(8,105, '\u0021');
+    }
 
     
   }while(display.nextPage());
 
   display.hibernate();
   }
+  //--------------------_End of display_--------------------
 
   prevTemp = temperature;
   prevHumidity = humidity;
   prevPeople_count = People_count;
+  prevLight = Light;
 
   auto time = millis();
-  // esp_sleep_enable_timer_wakeup((30000 - ((int)time % 30000))*1000);
-  // esp_sleep_enable_ext0_wakeup((gpio_num_t)17,HIGH);
-  // esp_sleep_enable_ext0_wakeup((gpio_num_t)7,HIGH);
-  // esp_light_sleep_start();
-  
-  while(time % 30000 > 50){time = millis();}
+  while(time % 30000 >= 50){time = millis(); delay(10);}
 
 }
