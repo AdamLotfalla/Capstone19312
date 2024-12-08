@@ -28,6 +28,10 @@
 
 ## Running the code
 1. connect a USB between the ESP32's port and your computer
+```diff
+- Make sure that your USB cable supports data transfer, not only power
+```
+If you are not sure if your cable supports it or not: connect your ESP normally, go to Windows search and search for **Device Manager**, open it and expand the **Ports** list. If the list changes content after your remove/plug in your USB, then you are good to go. If not, your cable cannot upload code and can only power up the ESP. 
 2. On VS code, click on the upload symbol "→" on the left of the bottom bar.
 3. Wait for it to finish uploading
 
