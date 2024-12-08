@@ -1,7 +1,9 @@
 # Technical report
-![Full prototype image](https://github.com/user-attachments/assets/89f6ee9f-743e-4361-a680-56ba497a46c3)
+
 ## Notes on the figure
 1. The EPD supports 4 danger icons and makes the text of the danger parameter red
+
+![Full prototype image](https://github.com/user-attachments/assets/558f5677-3928-454f-80e0-fbe090bcd433)
 
 | Icon | Description | Usage |
 | --- | --- | --- |
@@ -12,6 +14,20 @@
 
 2. The outer PIR sensor is 11 cm from the entrance, and the two PIRs are put 22 cm apart
 3. The ceiling of room J can be opened and the system is put there.
+4. The buzzer has 2 tones
+   - A continuous tone due to the trigger of the TSL2561's interrupt because a flashlight was opened.
+   - A 3-step tone that indicates sensor high value danger-if present-each cycle.
+5. The LED is set currently to ligth up when the ESP is connected to Wi-Fi on the start of the code. However, this functionality does not count for Wi-Fi disconnection in the middle of code due to time constraints
+
+   - To make this code from the ```void setup(){}``` to the start of the ```void loop(){}```
+```c++
+  if(WiFi.status() == WL_CONNECTED){
+    digitalWrite(led, HIGH);
+  }
+  else{
+    digitalWrite(led, LOW);
+  }
+```
 ## Getting the code ready
 1. Install VS Code from [this link](https://code.visualstudio.com/download)
 2. Open the program, go to the extensions tab on the left bar, and search for PlatformIO
