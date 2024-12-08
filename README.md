@@ -37,9 +37,9 @@
 5. If your want to use another timezone, edit lines **13** and **14**. It should look like that:
 ```js
 // Date in column A
-      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'M/d/yyyy'),
+  Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'M/d/yyyy'),
 // Time in column B
-      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'HH:mm:ss')  
+  Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'HH:mm:ss')  
 ```
 6. Click the **Deploy** button above, fill the required information and copy the deployment link
 7. Go to **Src > main.cpp** on line **258**. Replace the first string part of the variable **URL** with the deployment link you got like this:
