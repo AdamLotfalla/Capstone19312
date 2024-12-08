@@ -8,8 +8,8 @@
 | Icon | Description | Usage |
 | --- | --- | --- |
 | ⚙ | Indicates sensor fault | Used with the DHT22 when the sensor is not connected properly and displays nan |
-| ▲ | Indicates higher sensor readings than recommended for the tomb | used with DHT22 and TSL2561 to indicate high temperature, humidity, or light levels |
-| ▼ | Indicates lower sensor readings than recommended for the tomb | used with DHT22 to indicate low temperature or humidity |
+| ▲ | Indicates higher sensor readings than the upper threashold | used with DHT22 and TSL2561 to indicate high temperature, humidity, or light levels |
+| ▼ | Indicates lower sensor readings than the lower threashold | used with DHT22 to indicate low temperature or humidity |
 | ⚠ | Indicates danger; not high or low to a certain threashold | used when more people enter the tomb than recommended |
 
 2. The outer PIR sensor is 11 cm from the entrance, and the two PIRs are put 22 cm apart
