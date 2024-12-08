@@ -21,7 +21,14 @@
 ```diff
 - Make sure that your Wi-Fi is only 2.4Ghz and not 2.4/5Ghz; otherwise, it won't work!
 ```
-3. In the Apps Script page, edit the **sheet_id** and **sheet_name** fom your Google Sheet
-   The sheet id is the part of the link after the **https://docs.google.com/spreadsheets/d/**
+3. In the Apps Script page, edit the **sheet_id** and **sheet_name** fom your Google Sheet. (The sheet id is the part of the link after the **https://docs.google.com/spreadsheets/d/**)
 5. If your want to use another timezone, edit lines **13** and **14**
-connect a USB between the ESP32's port and your computer
+6. Click the **Deploy** button above, fill the required information and copy the deployment link
+7. Go to **Src > main.cpp** on line **258**. Replace the first string part of the variable **URL** with the deployment link you got.
+
+## Running the code
+1. connect a USB between the ESP32's port and your computer
+2. On VS code, click on the upload symbol "→" on the left of the bottom bar.
+3. Wait for it to finish uploading
+
+Once your upload was done, your system should be good to go and could be connected to the power bank 
