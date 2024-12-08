@@ -1,9 +1,9 @@
 # Technical report
 
+![Full prototype image](https://github.com/user-attachments/assets/558f5677-3928-454f-80e0-fbe090bcd433)
+
 ## Notes on the figure
 1. The EPD supports 4 danger icons and makes the text of the danger parameter red
-
-![Full prototype image](https://github.com/user-attachments/assets/558f5677-3928-454f-80e0-fbe090bcd433)
 
 | Icon | Description | Usage |
 | --- | --- | --- |
