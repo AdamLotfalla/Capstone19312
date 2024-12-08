@@ -36,8 +36,10 @@
 3. In the Apps Script page, edit the **sheet_id** and **sheet_name** fom your Google Sheet. (The sheet id is the part of the link after the **https://docs.google.com/spreadsheets/d/**)
 5. If your want to use another timezone, edit lines **13** and **14**. It should look like that:
 ```js
-      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'M/d/yyyy'), // Date in column A
-      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'HH:mm:ss')    // Time in column B
+// Date in column A
+      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'M/d/yyyy'),
+// Time in column B
+      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'HH:mm:ss')  
 ```
 6. Click the **Deploy** button above, fill the required information and copy the deployment link
 7. Go to **Src > main.cpp** on line **258**. Replace the first string part of the variable **URL** with the deployment link you got like this:
