@@ -9,8 +9,19 @@
 6. Open the PlatformIO tab on the left bar
 7. In the panel below, find **Open** and select it
 8. A tab will open. Select **Open Project**
-9. browse for the extracted folder and open it
+9. Browse for the extracted folder and open it
 10. Wait for it to open
+11. Open [Google Sheets](sheets.google.com) and make a new sheet
+12. Go to **Extensions > Apps Script**
+13. Set up your file and copy the code from the file called **Apps script** in the folder you downloaded
 
 ## Modifying the code
+1. Go to **Src > main.cpp** file in the file explorer tab on the top of the left bar
+2. Under **Wi-Fi definitions**, change the ssid and password between the quotations
+```diff
+- Make sure that your Wi-Fi is only 2.4Ghz and not 2.4/5Ghz; otherwise, it won't work!
+```
+3. In the Apps Script page, edit the **sheet_id** and **sheet_name** fom your Google Sheet
+   The sheet id is the part of the link after the **https://docs.google.com/spreadsheets/d/**
+5. If your want to use another timezone, edit lines **13** and **14**
 connect a USB between the ESP32's port and your computer
