@@ -1,5 +1,17 @@
 # Technical report
+![Full prototype image](https://github.com/user-attachments/assets/89f6ee9f-743e-4361-a680-56ba497a46c3)
+## Notes on the figure
+1. The EPD supports 4 danger icons and makes the text of the danger parameter red
 
+| Icon | Description | Usage |
+| --- | --- | --- |
+| ⚙ | Indicates sensor fault | Used with the DHT22 when the sensor is not connected properly and displays nan |
+| ▲ | Indicates higher sensor readings than recommended for the tomb | used with DHT22 and TSL2561 to indicate high temperature, humidity, or light levels |
+| ▼ | Indicates lower sensor readings than recommended for the tomb | used with DHT22 to indicate low temperature or humidity |
+| ⚠ | Indicates danger; not high or low to a certain threashold | used when more people enter the tomb than recommended |
+
+2. The outer PIR sensor is 11 cm from the entrance, and the two PIRs are put 22 cm apart
+3. The ceiling of room J can be opened and the system is put there.
 ## Getting the code ready
 1. Install VS Code from [this link](https://code.visualstudio.com/download)
 2. Open the program, go to the extensions tab on the left bar, and search for PlatformIO
@@ -22,16 +34,33 @@
 - Make sure that your Wi-Fi is only 2.4Ghz and not 2.4/5Ghz; otherwise, it won't work!
 ```
 3. In the Apps Script page, edit the **sheet_id** and **sheet_name** fom your Google Sheet. (The sheet id is the part of the link after the **https://docs.google.com/spreadsheets/d/**)
-5. If your want to use another timezone, edit lines **13** and **14**
+5. If your want to use another timezone, edit lines **13** and **14**. It should look like that:
+```js
+      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'M/d/yyyy'), // Date in column A
+      Utilities.formatDate(new Date(), /* put your timezone like this: "Africa/Cairo" */, 'HH:mm:ss')    // Time in column B
+```
 6. Click the **Deploy** button above, fill the required information and copy the deployment link
-7. Go to **Src > main.cpp** on line **258**. Replace the first string part of the variable **URL** with the deployment link you got.
-
+7. Go to **Src > main.cpp** on line **258**. Replace the first string part of the variable **URL** with the deployment link you got like this:
+```c++
+  URL = "/* your deployment code here */" + String(temperature) + "&humd=" + String(humidity) +
+      "&npeople=" + String(People_count) + "&Light=" + String(Light);
+```
+8. Go to lines from 64 to 69 to edit reading threasholds
+```c++
+const int Temperature_upper_threashold = 21;
+const int Temperature_lower_threashold = 16;
+const int Humidity_upper_threashold = 60;
+const int Humidity_lower_threashold = 40;
+const int People_count_upper_threashold = 50;
+const int Light_upper_threashold = 500;
+```
 ## Running the code
 1. connect a USB between the ESP32's port and your computer
 ```diff
 - Make sure that your USB cable supports data transfer, not only power
 ```
 If you are not sure if your cable supports it or not: connect your ESP normally, go to Windows search and search for **Device Manager**, open it and expand the **Ports** list. If the list changes content after your remove/plug in your USB, then you are good to go. If not, your cable cannot upload code and can only power up the ESP. 
+
 2. On VS code, click on the upload symbol "→" on the left of the bottom bar.
 3. Wait for it to finish uploading
 
