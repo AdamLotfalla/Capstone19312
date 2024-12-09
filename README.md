@@ -12,11 +12,14 @@
 | ▼ | Indicates lower sensor readings than the lower threashold | Used with DHT22 to indicate low temperature or humidity |
 | ⚠ | Indicates danger; not high or low to a certain threashold | Used when more people enter the tomb than recommended |
 
-**②** The outer PIR sensor is 11 cm from the entrance, and the two PIRs are put 22 cm apart
+**②** The outer PIR sensor is 11 cm from the gate, and the two PIRs are put 22 cm apart.
+
 **③** The ceiling of room J can be opened and the system is put there.
+
 **④** The buzzer has 2 tones
    - A continuous tone due to the trigger of the TSL2561's interrupt because a flashlight was opened.
    - A 3-step tone that indicates sensor high value danger-if present-each cycle.
+
 **⑤** The LED is set currently to light up when the ESP is connected to Wi-Fi on the start of the code. However, we made this functionality not count for Wi-Fi disconnection in the middle of code due to time constraints. To make that happen, move the section of code from the ```void setup(){}``` to the start of the ```void loop(){}```
 ```c++
   if(WiFi.status() == WL_CONNECTED){
