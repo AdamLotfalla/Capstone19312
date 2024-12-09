@@ -86,4 +86,4 @@ If you are not sure if your cable supports it or not: connect your ESP normally,
 2. On VS code, click on the upload symbol "→" on the left of the bottom bar.
 3. Wait for it to finish uploading
 
-Once your upload was done, your system should be good to go and could be connected to the power bank 
+Once your upload is done, your system should be good to go and could be connected to the power bank 
