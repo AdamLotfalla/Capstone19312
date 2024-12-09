@@ -7,20 +7,16 @@
 #include <queue>
 #include <Adafruit_TSL2561_U.h> //https://github.com/jacobstim/Adafruit_TSL2561
 #include <Wire.h>
-#include "pitches.h" //library
+#include "pitches.h"
 
 //---------------------------------------_Wi-Fi definitions_---------------------------------------//
 
-#define WIFI_SSID "Redmi Note 10S"
-#define WIFI_PASSWORD "01010101"
-//OPPO Reno8 T 5G, 12348765
+#define WIFI_SSID "Oh Biscuits"
+#define WIFI_PASSWORD "F8heeler@55"
 //Yurichi, 12348765
-
-//https://docs.google.com/spreadsheets/d/1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc/edit?gid=0#gid=0
-//1S6_IL7yn1GuPK6xeMa3itCuH75X0g4UemVOapFCJXmc
-
-String URL = "https://script.google.com/macros/s/AKfycbxnqfEGZMHjn2Ebd_D0tm0VSgEZOGyk9OVzxktNx8H7G_xwJ2qzl26o78IyMAwsav0F/exec?sts=write";
-
+//MSTF El-Khaliji, Flashfrien@511
+//Oh Biscuits, F9heeler@55
+//Redmi Note 10S, 0987654321
 
 //---------------------------------------_TSL2561 interrupt adresses_---------------------------------------//
 
@@ -34,8 +30,6 @@ String URL = "https://script.google.com/macros/s/AKfycbxnqfEGZMHjn2Ebd_D0tm0VSgE
 #define THRESHHIGHHIGH 0x05
 #define INTERRUPT_CONTROL 0x06
 #define COMMAND_CLEAR_INTERRUPT 0xC0
-
-#define TSL2561_INT_PIN 12
 
 //---------------------------------------_EPD definitions_---------------------------------------//
 
@@ -52,32 +46,36 @@ GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> displ
 #define PIR_out_pin 26
 #define led 33
 #define buzzer 32
+#define TSL2561_INT_PIN 12
 
 //---------------------------------------_Variable declarations_---------------------------------------//
 
-U8G2_FOR_ADAFRUIT_GFX  u8g2Fonts;
+U8G2_FOR_ADAFRUIT_GFX  displayFont;
 DHT DHT_SENSOR(25,DHT22);
 Adafruit_TSL2561_Unified TSL = Adafruit_TSL2561_Unified(TSL2561_ADDR_FLOAT, 12345);
+sensors_event_t event;
+String URL;
 
 short int Temperature_danger = 0;
 short int Humidity_danger = 0;
 bool People_count_danger = false;
 bool Light_danger = false;
 
-const int Temperature_upper_threashold = 21;
-const int Temperature_lower_threashold = 16;
-const int Humidity_upper_threashold = 60;
-const int Humidity_lower_threashold = 40;
-const int People_count_upper_threashold = 5;
-const int Light_upper_threashold = 500;
+const int Temperature_upper_threshold = 21;
+const int Temperature_lower_threshold = 16;
+const int Humidity_upper_threshold = 60;
+const int Humidity_lower_threshold = 40;
+const int People_count_upper_threshold = 50;
+const int Light_upper_threshold = 500;
 
 bool DHT_fault = false;
 bool TSL2561_fault = false;
 
 int People_count = 0;
 std::queue <bool> gateLog; //0 = inside, 1 = outside
-bool TSL_interrupt_triggered = false;
+volatile bool TSL_interrupt_triggered = false;
 
+float Light;
 float prevTemp;
 float prevHumidity;
 float prevLight;
@@ -120,9 +118,9 @@ void configureSensor(void)
   /* Configure interrupt thresholds */
   // First: convert lux value to raw sensor value, using "sunlight" approximation.
   // Other approximations, see Adafruit_TSL2561_U.h
-  uint16_t threshold = TSL.calculateRawCH0(Light_upper_threashold, TSL2561_APPROXCHRATIO_LED);
+  uint16_t threshold = TSL.calculateRawCH0(Light_upper_threshold, TSL2561_APPROXCHRATIO_LED);
   TSL.setInterruptThreshold(0,threshold);
-  Serial.println(threshold);
+  // Serial.println(threshold);
 
   /* Enable level interrupt, trigger interrupt after 5 integration times
      -> Because integration time is 13ms by default, this means the threshold
@@ -141,54 +139,64 @@ void clearInterrupt() {
   Wire.endTransmission();
 }
 
-void WarningTone() {
-  int note = NOTE_A6;   // Moderate-pitched tone
-  int duration = 150;   // Short duration for a quick beep
-  
-  tone(buzzer, note, duration);
-  delay(duration + 50); // Small delay to ensure the tone finishes properly
-  noTone(buzzer);       // Turn off the buzzer
-}
-
 void DangerTone() {
   // Define a danger tone melody with sharp high and low alternating notes
   int melody[] = {NOTE_B7, NOTE_F7, NOTE_B7, NOTE_F7, NOTE_B7, NOTE_F7};
   int noteDurations[] = {8, 8, 8, 8, 8, 8}; // Short duration for each note
   
-  for (int repeat = 0; repeat < 3; repeat++) { // Repeat the sequence 3 times for urgency
+  for (int repeat = 0; repeat < 1; repeat++) { // Repeat the sequence 3 times for urgency
     for (int thisNote = 0; thisNote < 6; thisNote++) {
       int noteDuration = 1000 / noteDurations[thisNote];
       tone(buzzer, melody[thisNote], noteDuration);
       delay(noteDuration * 1.3); // Add a slight pause between notes
       noTone(buzzer); // Stop the tone before the next note
     }
-    delay(300); // Add a short pause between sequences
+    // delay(300); // Add a short pause between sequences
   }
 }
 
 void Light_interrupt() {
-  WarningTone();
-  TSL_interrupt_triggered = true;
+  if(Light != 0){
+    if(!TSL_interrupt_triggered){
+      // Warning melody notes and durations
+      int warningMelody[] = {
+        NOTE_A5, NOTE_B5, NOTE_A5, NOTE_G5
+      };
+
+      int noteDurations[] = {
+        8, 8, 8, 4
+      };
+
+      // Play the warning melody
+      for (int i = 0; i < 4; i++) {
+        int noteDuration = 1000 / noteDurations[i]; // Calculate note duration
+        tone(buzzer, warningMelody[i], noteDuration); // Play the note
+        delay(noteDuration * 1.3); // Add a short pause after each note
+        noTone(buzzer); // Turn off the buzzer
+      }      
+      TSL_interrupt_triggered = true;
+    }
+  }
 }
 
-void setup()
-{
+void setup(){
   display.init(115200, true, 2, false);
   Serial.begin(115200);
-  u8g2Fonts.begin(display);  //connect u8g2 procedures to Adafruit GFX
+  displayFont.begin(display);  //connect u8g2 procedures to Adafruit GFX
   DHT_SENSOR.begin();
 
   pinMode(PIR_in_pin, INPUT_PULLDOWN);
   pinMode(PIR_out_pin, INPUT_PULLDOWN);
   pinMode(TSL2561_INT_PIN, INPUT_PULLUP);
   pinMode(buzzer, OUTPUT);
+  pinMode(led, OUTPUT);
 
+  digitalWrite(led, LOW);
   digitalWrite(buzzer, HIGH);
 
-  attachInterrupt(digitalPinToInterrupt( PIR_in_pin ), innerPIRtrigger ,RISING);
-  attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), outerPIRtrigger ,RISING);
-  attachInterrupt(digitalPinToInterrupt(TSL2561_INT_PIN), Light_interrupt, FALLING);
-
+  displaySensorDetails();
+  configureSensor();
+  clearInterrupt();
   
   if(!TSL.begin())
   {
@@ -196,13 +204,7 @@ void setup()
     while(1);
   }
 
-  displaySensorDetails();
-  configureSensor();
-
   display.setRotation(1);
-
-  pinMode(led, OUTPUT);
-  digitalWrite(led, LOW);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to Wi-Fi");
@@ -213,13 +215,9 @@ void setup()
   Serial.println();
   Serial.print("Connected with IP: ");
   Serial.println(WiFi.localIP());
+  Serial.print("MAC address: ");
+  Serial.println(WiFi.macAddress());
   Serial.println();
-
-  setCpuFrequencyMhz(80);
-
-}
-
-void loop() {
 
   if(WiFi.status() == WL_CONNECTED){
     digitalWrite(led, HIGH);
@@ -228,12 +226,22 @@ void loop() {
     digitalWrite(led, LOW);
   }
 
-  sensors_event_t event;
+  setCpuFrequencyMhz(80);
+
+  attachInterrupt(digitalPinToInterrupt( PIR_in_pin ), innerPIRtrigger ,RISING);
+  attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), outerPIRtrigger ,RISING);
+  attachInterrupt(digitalPinToInterrupt(TSL2561_INT_PIN), Light_interrupt, FALLING);
+
+  clearInterrupt();
+}
+
+void loop() {
+
   TSL.getEvent(&event);
 
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
-  float Light = event.light;
+  Light = event.light;
 
   while(gateLog.size() >= 2){
     bool first = gateLog.front();
@@ -246,126 +254,115 @@ void loop() {
   }
 
 
-  URL = "https://script.google.com/macros/s/AKfycbysSuNL1ltvjkaQBunL6vNLS5m6BGEgk7yWyvXBOT2bIYknJyMW1LEHgN6IjDdEn2i6/exec?sts=write";
-  URL += "&temp=" + String(temperature);
-  URL += "&humd=" + String(humidity);
-  URL += "&npeople=" + String(People_count);
+  URL = "https://script.google.com/macros/s/AKfycbxK6v36wEHI8-qAQuePUMdTTxE2sqFKfAbY9ps76FSZiG8xHWi6HVeGCcv41KrRYW7F/exec?sts=write&temp=" + String(temperature) + "&humd=" + String(humidity) + "&npeople=" + String(People_count) + "&Light=" + String(Light);
 
   HTTPClient http;
-  // HTTP GET Request.
   http.begin(URL.c_str());
-  // http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // commented out to remove extra delay
-
-  // Gets the HTTP status code. 
+  // http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // commented out to remove extra delay 
   int httpCode = http.GET();
-    String payload;
+  String payload;
   if (httpCode > 0) {
     payload = http.getString();
-    Serial.println("Payload : " + payload);    
+    // Serial.println("Payload : " + payload);    
   }
 
   http.end();
-  // WiFi.mode(WIFI_OFF);
 
-  
-
-  if(temperature > Temperature_upper_threashold){ Temperature_danger = 1;}else if(temperature < Temperature_lower_threashold){ Temperature_danger = -1;}else{Temperature_danger = 0;}
-  if(humidity > Humidity_upper_threashold){ Humidity_danger = 1;}else if(humidity < Humidity_lower_threashold){ Humidity_danger = -1;}else{Humidity_danger = 0;}
-  if(People_count >= People_count_upper_threashold){ People_count_danger = true;}else{ People_count_danger = false;}
+  if(temperature > Temperature_upper_threshold){ Temperature_danger = 1;}else if(temperature < Temperature_lower_threshold){ Temperature_danger = -1;}else{Temperature_danger = 0;}
+  if(humidity > Humidity_upper_threshold){ Humidity_danger = 1;}else if(humidity < Humidity_lower_threshold){ Humidity_danger = -1;}else{Humidity_danger = 0;}
+  if(People_count >= People_count_upper_threshold){ People_count_danger = true;}else{ People_count_danger = false;}
   if(isnan(temperature) || isnan(humidity)){DHT_fault = true;}else{DHT_fault = false;}
-  if(Light > Light_upper_threashold){Light_danger = true;}else{Light_danger = false;}
+  if(Light > Light_upper_threshold){Light_danger = true;}else{Light_danger = false;}
   if(Light == 0){TSL2561_fault = true;}else{TSL2561_fault = false;}
 
-  if(TSL_interrupt_triggered){
+  if((Temperature_danger || Humidity_danger || People_count_danger || Light_danger || TSL2561_fault || DHT_fault) && !TSL_interrupt_triggered){
+    DangerTone();
+  }
+
+  if(TSL_interrupt_triggered && Light < 50){
     clearInterrupt();
     TSL_interrupt_triggered = false;
   }
 
-  if(Temperature_danger || Humidity_danger || People_count_danger || Light_danger){
-    DangerTone();
-    delay(100);
-  }
-
   //--------------------_Display_--------------------
   if(temperature != prevTemp || humidity != prevHumidity || People_count != prevPeople_count || Light != prevLight){
+    display.firstPage();
+    displayFont.setBackgroundColor(GxEPD_WHITE);
 
-  display.firstPage();
-  u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
+    do {
+      displayFont.setForegroundColor(Temperature_danger || DHT_fault? 0xF800: 0x0000);
+      display.fillScreen(GxEPD_WHITE);
+      displayFont.setFont(u8g2_font_fub17_tr);
+      displayFont.setCursor(25,30);
+      displayFont.printf("Temperature: %.2f", temperature);
+      displayFont.setFont(u8g2_font_cu12_t_symbols);  // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+      displayFont.print(" ℃");
 
-  do {
-    u8g2Fonts.setForegroundColor(Temperature_danger || DHT_fault? 0xF800: 0x0000);
-    display.fillScreen(GxEPD_WHITE);
-    u8g2Fonts.setFont(u8g2_font_fub17_tr);
-    u8g2Fonts.setCursor(25,30);
-    u8g2Fonts.printf("Temperature: %.2f", temperature);
-    u8g2Fonts.setFont(u8g2_font_cu12_t_symbols);  // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-    u8g2Fonts.print(" ℃");
+      if(DHT_fault){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,27, '\u0047');
+      }
+      else if(Temperature_danger == 1){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,27, '\u007B'); 
+      }
+      else if(Temperature_danger == -1){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,27, '\u007D');
+      }
+      //-----------------------
+      displayFont.setForegroundColor(Humidity_danger || DHT_fault? 0xF800: 0x0000);
+      displayFont.setFont(u8g2_font_fub17_tr);
+      displayFont.setCursor(25,55);
+      displayFont.printf("Humidity: %.2f", humidity);
+      displayFont.setFont(u8g2_font_cu12_t_symbols);
+      displayFont.print(" %");
 
-    if(DHT_fault){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,27, '\u0047');
-    }
-    else if(Temperature_danger == 1){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,27, '\u007B'); 
-    }
-    else if(Temperature_danger == -1){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,27, '\u007D');
-    }
-    //-----------------------
-    u8g2Fonts.setForegroundColor(Humidity_danger || DHT_fault? 0xF800: 0x0000);
-    u8g2Fonts.setFont(u8g2_font_fub17_tr);
-    u8g2Fonts.setCursor(25,55);
-    u8g2Fonts.printf("Humidity: %.2f", humidity);
-    u8g2Fonts.setFont(u8g2_font_cu12_t_symbols);
-    u8g2Fonts.print(" %");
+      if(DHT_fault){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,52, '\u0047');
+      }
+      else if(Humidity_danger == 1){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,52, '\u007B');
+      }
+      else if(Humidity_danger == -1){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,52, '\u007D');
+      }
+      //------------------------
+      displayFont.setForegroundColor(People_count_danger? 0xF800: 0x0000);
+      displayFont.setFont(u8g2_font_fub17_tr);
+      displayFont.setCursor(25,80);
+      displayFont.printf("People count: %i", People_count);
+      displayFont.setFont(u8g2_font_cu12_t_symbols);
+      displayFont.printf("/ %i", People_count_upper_threshold);
 
-    if(DHT_fault){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,52, '\u0047');
-    }
-    else if(Humidity_danger == 1){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,52, '\u007B');
-    }
-    else if(Humidity_danger == -1){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,52, '\u007D');
-    }
-    //------------------------
-    u8g2Fonts.setForegroundColor(People_count_danger? 0xF800: 0x0000);
-    u8g2Fonts.setFont(u8g2_font_fub17_tr);
-    u8g2Fonts.setCursor(25,80);
-    u8g2Fonts.printf("People count: %i", People_count);
-    u8g2Fonts.setFont(u8g2_font_cu12_t_symbols);
-    u8g2Fonts.printf("/ %i", People_count_upper_threashold);
+      if(People_count_danger){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,77, '\u0021');
+      }
+      //------------------------
+      displayFont.setForegroundColor(Light_danger || TSL2561_fault? 0xF800: 0x0000);
+      displayFont.setFont(u8g2_font_fub17_tr);
+      displayFont.setCursor(25,105);
+      displayFont.printf("Ligth intensity: %.0f", Light);
+      displayFont.setFont(u8g2_font_cu12_t_symbols);
+      displayFont.printf(" lux");
 
-    if(People_count_danger){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,77, '\u0021');
-    }
-    //------------------------
-    u8g2Fonts.setForegroundColor(Light_danger? 0xF800: 0x0000);
-    u8g2Fonts.setFont(u8g2_font_fub17_tr);
-    u8g2Fonts.setCursor(25,105);
-    u8g2Fonts.printf("Ligth intensity: %.0f", Light);
-    u8g2Fonts.setFont(u8g2_font_cu12_t_symbols);
-    u8g2Fonts.printf(" lux");
+      if(TSL2561_fault){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,105, '\u0047');
+      }
+      else if(Light_danger){
+        displayFont.setFont(u8g2_font_twelvedings_t_all);
+        displayFont.drawGlyph(8,105, '\u0021');
+      }
 
-    if(TSL2561_fault){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,105, '\u0047');
-    }
-    else if(Light_danger){
-      u8g2Fonts.setFont(u8g2_font_twelvedings_t_all);
-      u8g2Fonts.drawGlyph(8,105, '\u0021');
-    }
 
-    
-  }while(display.nextPage());
+    }while(display.nextPage());
 
-  display.hibernate();
+    display.hibernate();
   }
   //--------------------_End of display_--------------------
 
@@ -375,6 +372,6 @@ void loop() {
   prevLight = Light;
 
   auto time = millis();
-  while(time % 30000 >= 50){time = millis(); delay(10);}
+  while(time % 30000 >= 50){time = millis();}
 
 }
