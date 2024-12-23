@@ -11,8 +11,8 @@
 
 //---------------------------------------_Wi-Fi definitions_---------------------------------------//
 
-#define WIFI_SSID "Oh Biscuits"
-#define WIFI_PASSWORD "F8heeler@55"
+#define WIFI_SSID "Redmi Note 10S"
+#define WIFI_PASSWORD "0987654321"
 //Yurichi, 12348765
 //MSTF El-Khaliji, Flashfrien@511
 //Oh Biscuits, F9heeler@55
@@ -46,7 +46,7 @@ GxEPD2_DISPLAY_CLASS<GxEPD2_DRIVER_CLASS, MAX_HEIGHT(GxEPD2_DRIVER_CLASS)> displ
 #define PIR_out_pin 26
 #define led 33
 #define buzzer 32
-#define TSL2561_INT_PIN 12
+#define TSL2561_INT_PIN 13
 
 //---------------------------------------_Variable declarations_---------------------------------------//
 
@@ -133,12 +133,6 @@ void configureSensor(void)
   TSL.clearLevelInterrupt();
 }
 
-void clearInterrupt() {
-  Wire.beginTransmission(TSL2561_ADDR);
-  Wire.write(COMMAND_CLEAR_INTERRUPT); // Command to clear interrupt
-  Wire.endTransmission();
-}
-
 void DangerTone() {
   // Define a danger tone melody with sharp high and low alternating notes
   int melody[] = {NOTE_B7, NOTE_F7, NOTE_B7, NOTE_F7, NOTE_B7, NOTE_F7};
@@ -155,28 +149,31 @@ void DangerTone() {
   }
 }
 
+void WarningTone(){
+    // Warning melody notes and durations
+    int warningMelody[] = {
+      NOTE_A5, NOTE_B5, NOTE_A5, NOTE_G5
+    };
+    int noteDurations[] = {
+      8, 8, 8, 4
+    };
+    // Play the warning melody
+    for (int i = 0; i < 4; i++) {
+      int noteDuration = 1000 / noteDurations[i]; // Calculate note duration
+      tone(buzzer, warningMelody[i], noteDuration); // Play the note
+      delay(noteDuration * 1.3); // Add a short pause after each note
+      noTone(buzzer); // Turn off the buzzer
+    }      
+}
+
 void Light_interrupt() {
-  if(Light != 0){
-    if(!TSL_interrupt_triggered){
-      // Warning melody notes and durations
-      int warningMelody[] = {
-        NOTE_A5, NOTE_B5, NOTE_A5, NOTE_G5
-      };
+  TSL_interrupt_triggered = true;
+  Serial.println("Interrupt triggered");
+  // Light = event.light;
 
-      int noteDurations[] = {
-        8, 8, 8, 4
-      };
-
-      // Play the warning melody
-      for (int i = 0; i < 4; i++) {
-        int noteDuration = 1000 / noteDurations[i]; // Calculate note duration
-        tone(buzzer, warningMelody[i], noteDuration); // Play the note
-        delay(noteDuration * 1.3); // Add a short pause after each note
-        noTone(buzzer); // Turn off the buzzer
-      }      
-      TSL_interrupt_triggered = true;
-    }
-  }
+  // if(Light != 0){
+  //   Serial.println("Light != 0");
+  // }
 }
 
 void setup(){
@@ -190,13 +187,13 @@ void setup(){
   pinMode(TSL2561_INT_PIN, INPUT_PULLUP);
   pinMode(buzzer, OUTPUT);
   pinMode(led, OUTPUT);
+  pinMode(10, OUTPUT);
 
   digitalWrite(led, LOW);
   digitalWrite(buzzer, HIGH);
 
   displaySensorDetails();
   configureSensor();
-  clearInterrupt();
   
   if(!TSL.begin())
   {
@@ -232,7 +229,7 @@ void setup(){
   attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), outerPIRtrigger ,RISING);
   attachInterrupt(digitalPinToInterrupt(TSL2561_INT_PIN), Light_interrupt, FALLING);
 
-  clearInterrupt();
+  Light = event.light;
 }
 
 void loop() {
@@ -242,6 +239,22 @@ void loop() {
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
   Light = event.light;
+  Serial.println("light reading");
+
+  // Serial.println(TSL_interrupt_triggered);
+  // if(TSL_interrupt_triggered){
+  //   if(Light < Light_upper_threshold){
+  //     TSL.clearLevelInterrupt();
+  //     TSL_interrupt_triggered = false;
+  //     Serial.println("Interrupt cleared");
+  //   }
+  //   // digitalWrite(buzzer, HIGH);
+  //   // WarningTone();
+  // }
+  // Serial.println(TSL_interrupt_triggered);
+
+  TSL.clearLevelInterrupt();
+  Serial.println("Cleared Interrupt");
 
   while(gateLog.size() >= 2){
     bool first = gateLog.front();
@@ -252,7 +265,6 @@ void loop() {
     if(first == 0 && second == 1){People_count--;}
     else if( first == 1 && second == 0){People_count++;}
   }
-
 
   URL = "https://script.google.com/macros/s/AKfycbxK6v36wEHI8-qAQuePUMdTTxE2sqFKfAbY9ps76FSZiG8xHWi6HVeGCcv41KrRYW7F/exec?sts=write&temp=" + String(temperature) + "&humd=" + String(humidity) + "&npeople=" + String(People_count) + "&Light=" + String(Light);
 
@@ -277,11 +289,6 @@ void loop() {
 
   if((Temperature_danger || Humidity_danger || People_count_danger || Light_danger || TSL2561_fault || DHT_fault) && !TSL_interrupt_triggered){
     DangerTone();
-  }
-
-  if(TSL_interrupt_triggered && Light < 50){
-    clearInterrupt();
-    TSL_interrupt_triggered = false;
   }
 
   //--------------------_Display_--------------------
