@@ -8,6 +8,8 @@
 #include <Adafruit_TSL2561_U.h> //https://github.com/jacobstim/Adafruit_TSL2561
 #include <Wire.h>
 #include "pitches.h"
+// #include <freertos/FreeRTOS.h>
+// #include <task.h>
 
 //---------------------------------------_Wi-Fi definitions_---------------------------------------//
 
@@ -61,19 +63,18 @@ short int Humidity_danger = 0;
 bool People_count_danger = false;
 bool Light_danger = false;
 
-const int Temperature_upper_threshold = 21;
+const int Temperature_upper_threshold = 24;
 const int Temperature_lower_threshold = 16;
 const int Humidity_upper_threshold = 60;
 const int Humidity_lower_threshold = 40;
 const int People_count_upper_threshold = 50;
-const int Light_upper_threshold = 500;
+const int Light_upper_threshold = 100;
 
 bool DHT_fault = false;
 bool TSL2561_fault = false;
 
 int People_count = 0;
 std::queue <bool> gateLog; //0 = inside, 1 = outside
-volatile bool TSL_interrupt_triggered = false;
 
 float Light;
 float prevTemp;
@@ -90,6 +91,7 @@ void innerPIRtrigger (){
 void outerPIRtrigger(){
   gateLog.push(1);
 }
+
 
 //---------------------------------------_Functions_---------------------------------------//
 
@@ -157,6 +159,7 @@ void WarningTone(){
     int noteDurations[] = {
       8, 8, 8, 4
     };
+
     // Play the warning melody
     for (int i = 0; i < 4; i++) {
       int noteDuration = 1000 / noteDurations[i]; // Calculate note duration
@@ -166,16 +169,27 @@ void WarningTone(){
     }      
 }
 
-void Light_interrupt() {
-  TSL_interrupt_triggered = true;
-  Serial.println("Interrupt triggered");
-  // Light = event.light;
+//------------------------------------_FreeRTOS tasks_-----------------------------------//
 
-  // if(Light != 0){
-  //   Serial.println("Light != 0");
-  // }
+void SensorPoll_Task (void* parameter){
+  vTaskDelay(2000);
+  configureSensor();
+  Serial.println("Task started");
+  for(;;){
+
+    TSL.getEvent(&event);
+    Light = event.light;
+
+    Serial.println(Light);
+
+    if(Light > Light_upper_threshold){
+      tone(buzzer, 1000, 750);
+    }
+    vTaskDelay(900);
+  }
 }
 
+//------------------------------------_Framework funcitons_------------------------------------//
 void setup(){
   display.init(115200, true, 2, false);
   Serial.begin(115200);
@@ -193,7 +207,7 @@ void setup(){
   digitalWrite(buzzer, HIGH);
 
   displaySensorDetails();
-  configureSensor();
+  // configureSensor();
   
   if(!TSL.begin())
   {
@@ -227,34 +241,28 @@ void setup(){
 
   attachInterrupt(digitalPinToInterrupt( PIR_in_pin ), innerPIRtrigger ,RISING);
   attachInterrupt(digitalPinToInterrupt( PIR_out_pin ), outerPIRtrigger ,RISING);
-  attachInterrupt(digitalPinToInterrupt(TSL2561_INT_PIN), Light_interrupt, FALLING);
 
-  Light = event.light;
+
+  xTaskCreate(
+    SensorPoll_Task, //function name
+    "Task 1", //task name
+    2048, //stack size
+    NULL, //task parameters
+    5, //task priority
+    NULL
+  );
+
 }
 
 void loop() {
 
-  TSL.getEvent(&event);
 
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
-  Light = event.light;
-  Serial.println("light reading");
+  // TSL.getEvent(&event);
+  // Light = event.light;
 
-  // Serial.println(TSL_interrupt_triggered);
-  // if(TSL_interrupt_triggered){
-  //   if(Light < Light_upper_threshold){
-  //     TSL.clearLevelInterrupt();
-  //     TSL_interrupt_triggered = false;
-  //     Serial.println("Interrupt cleared");
-  //   }
-  //   // digitalWrite(buzzer, HIGH);
-  //   // WarningTone();
-  // }
-  // Serial.println(TSL_interrupt_triggered);
-
-  TSL.clearLevelInterrupt();
-  Serial.println("Cleared Interrupt");
+  // Serial.println(Light);
 
   while(gateLog.size() >= 2){
     bool first = gateLog.front();
@@ -287,7 +295,7 @@ void loop() {
   if(Light > Light_upper_threshold){Light_danger = true;}else{Light_danger = false;}
   if(Light == 0){TSL2561_fault = true;}else{TSL2561_fault = false;}
 
-  if((Temperature_danger || Humidity_danger || People_count_danger || Light_danger || TSL2561_fault || DHT_fault) && !TSL_interrupt_triggered){
+  if(Temperature_danger || Humidity_danger || People_count_danger || Light_danger || TSL2561_fault || DHT_fault){
     DangerTone();
   }
 
@@ -353,7 +361,7 @@ void loop() {
       displayFont.setForegroundColor(Light_danger || TSL2561_fault? 0xF800: 0x0000);
       displayFont.setFont(u8g2_font_fub17_tr);
       displayFont.setCursor(25,105);
-      displayFont.printf("Ligth intensity: %.0f", Light);
+      displayFont.printf("Light intensity: %.0f", Light);
       displayFont.setFont(u8g2_font_cu12_t_symbols);
       displayFont.printf(" lux");
 
