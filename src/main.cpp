@@ -260,6 +260,7 @@ void loop() {
 
   float temperature = DHT_SENSOR.readTemperature();
   float humidity = DHT_SENSOR.readHumidity();
+  Light_Buffer = Light;
   // TSL.getEvent(&event);
   // Light = event.light;
 
@@ -275,7 +276,7 @@ void loop() {
     else if( first == 1 && second == 0){People_count++;}
   }
 
-  URL = "https://script.google.com/macros/s/AKfycbxK6v36wEHI8-qAQuePUMdTTxE2sqFKfAbY9ps76FSZiG8xHWi6HVeGCcv41KrRYW7F/exec?sts=write&temp=" + String(temperature) + "&humd=" + String(humidity) + "&npeople=" + String(People_count) + "&Light=" + String(Light);
+  URL = "https://script.google.com/macros/s/AKfycbxK6v36wEHI8-qAQuePUMdTTxE2sqFKfAbY9ps76FSZiG8xHWi6HVeGCcv41KrRYW7F/exec?sts=write&temp=" + String(temperature) + "&humd=" + String(humidity) + "&npeople=" + String(People_count) + "&Light=" + String(Light_Buffer);
 
   HTTPClient http;
   http.begin(URL.c_str());
@@ -293,15 +294,15 @@ void loop() {
   if(humidity > Humidity_upper_threshold){ Humidity_danger = 1;}else if(humidity < Humidity_lower_threshold){ Humidity_danger = -1;}else{Humidity_danger = 0;}
   // if(People_count >= People_count_upper_threshold){ People_count_danger = true;}else{ People_count_danger = false;} //uncomment if you want an upper limit for people count
   if(isnan(temperature) || isnan(humidity)){DHT_fault = true;}else{DHT_fault = false;}
-  if(Light > Light_upper_threshold){Light_danger = true;}else{Light_danger = false;}
-  if(Light == 0){TSL2561_fault = true;}else{TSL2561_fault = false;}
+  if(Light_Buffer > Light_upper_threshold){Light_danger = true;}else{Light_danger = false;}
+  if(Light_Buffer == 0){TSL2561_fault = true;}else{TSL2561_fault = false;}
 
   if(Temperature_danger || Humidity_danger || People_count_danger || Light_danger || TSL2561_fault || DHT_fault){
     DangerTone();
   }
 
   //--------------------_Display_--------------------
-  if(temperature != prevTemp || humidity != prevHumidity || People_count != prevPeople_count || Light != prevLight){
+  if(temperature != prevTemp || humidity != prevHumidity || People_count != prevPeople_count || Light_Buffer != prevLight){
     display.firstPage();
     displayFont.setBackgroundColor(GxEPD_WHITE);
 
@@ -362,7 +363,7 @@ void loop() {
       displayFont.setForegroundColor(Light_danger || TSL2561_fault? 0xF800: 0x0000);
       displayFont.setFont(u8g2_font_fub17_tr);
       displayFont.setCursor(25,105);
-      displayFont.printf("Light intensity: %.0f", Light);
+      displayFont.printf("Light intensity: %.0f", Light_Buffer);
       displayFont.setFont(u8g2_font_cu12_t_symbols);
       displayFont.printf(" lux");
 
@@ -385,7 +386,7 @@ void loop() {
   prevTemp = temperature;
   prevHumidity = humidity;
   prevPeople_count = People_count;
-  prevLight = Light;
+  prevLight = Light_Buffer;
 
   auto time = millis();
   while(time % 30000 >= 50){time = millis();}
