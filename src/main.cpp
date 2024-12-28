@@ -67,7 +67,7 @@ const int Temperature_upper_threshold = 24;
 const int Temperature_lower_threshold = 16;
 const int Humidity_upper_threshold = 60;
 const int Humidity_lower_threshold = 40;
-const int People_count_upper_threshold = 50;
+// const int People_count_upper_threshold = 50; //uncomment if you want an upper limit for people count
 const int Light_upper_threshold = 100;
 
 bool DHT_fault = false;
@@ -77,6 +77,7 @@ int People_count = 0;
 std::queue <bool> gateLog; //0 = inside, 1 = outside
 
 float Light;
+float Light_Buffer;
 float prevTemp;
 float prevHumidity;
 float prevLight;
@@ -290,7 +291,7 @@ void loop() {
 
   if(temperature > Temperature_upper_threshold){ Temperature_danger = 1;}else if(temperature < Temperature_lower_threshold){ Temperature_danger = -1;}else{Temperature_danger = 0;}
   if(humidity > Humidity_upper_threshold){ Humidity_danger = 1;}else if(humidity < Humidity_lower_threshold){ Humidity_danger = -1;}else{Humidity_danger = 0;}
-  if(People_count >= People_count_upper_threshold){ People_count_danger = true;}else{ People_count_danger = false;}
+  // if(People_count >= People_count_upper_threshold){ People_count_danger = true;}else{ People_count_danger = false;} //uncomment if you want an upper limit for people count
   if(isnan(temperature) || isnan(humidity)){DHT_fault = true;}else{DHT_fault = false;}
   if(Light > Light_upper_threshold){Light_danger = true;}else{Light_danger = false;}
   if(Light == 0){TSL2561_fault = true;}else{TSL2561_fault = false;}
@@ -351,7 +352,7 @@ void loop() {
       displayFont.setCursor(25,80);
       displayFont.printf("People count: %i", People_count);
       displayFont.setFont(u8g2_font_cu12_t_symbols);
-      displayFont.printf("/ %i", People_count_upper_threshold);
+      // displayFont.printf("/ %i", People_count_upper_threshold); //uncomment if you want an upper limit for people count
 
       if(People_count_danger){
         displayFont.setFont(u8g2_font_twelvedings_t_all);
