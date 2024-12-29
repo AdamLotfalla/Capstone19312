@@ -76,7 +76,7 @@ const int Humidity_lower_threashold = 40;
 const int People_count_upper_threashold = 50;
 const int Light_upper_threashold = 100;
 ```
-8. Find using ```Ctrl + F``` the lines with this text```//uncomment if you want an upper limit for people count``` and optinally uncomment the whole line to put an upper limit to people count (there are 3 lines in total)
+8. Find using ```Ctrl + F``` the lines with this text ```//uncomment if you want an upper limit for people count``` and optionally uncomment the whole line to put an upper limit to people count (there are 3 lines in total)
 ## Running the code
 1. connect a USB between the ESP32's port and your computer
 ```diff
