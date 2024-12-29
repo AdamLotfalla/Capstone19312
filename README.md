@@ -63,19 +63,20 @@
    'HH:mm:ss') // Time in column B 
 ```
 5. Click the **Deploy** button above, fill in the required information and copy the deployment link
-6. Go to **Src > main.cpp** on line **258**. Replace the first string part of the variable **URL** with the deployment link you got like this:
+6. Go to **Src > main.cpp** on line **279**. Replace the first string part of the variable **URL** with the deployment link you got like this:
 ```c++
   URL = "/* your deployment code here */" + String(temperature) + "&humd=" + String(humidity) + "&npeople=" + String(People_count) + "&Light=" + String(Light);
 ```
-7. Go to lines from **64** to **69** to edit reading threasholds
+7. Go to lines from **66** to **71** to edit reading threasholds
 ```c++
-const int Temperature_upper_threashold = 21;
+const int Temperature_upper_threashold = 24;
 const int Temperature_lower_threashold = 16;
 const int Humidity_upper_threashold = 60;
 const int Humidity_lower_threashold = 40;
 const int People_count_upper_threashold = 50;
-const int Light_upper_threashold = 500;
+const int Light_upper_threashold = 100;
 ```
+8. Find using ```Ctrl + F``` the lines with this text```//uncomment if you want an upper limit for people count``` and optinally uncomment the whole line to put an upper limit to people count (there are 3 lines in total)
 ## Running the code
 1. connect a USB between the ESP32's port and your computer
 ```diff
